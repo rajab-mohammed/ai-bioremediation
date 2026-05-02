@@ -12,6 +12,7 @@ st.header("Enter Soil Sample Data")
 pH = st.number_input("pH", 0.0, 14.0, 8.2)
 EC = st.number_input("EC / Salinity", 0.0, 20.0, 4.6)
 OM = st.number_input("Organic Matter (%)", 0.0, 20.0, 0.9)
+Carbon = st.number_input("Carbon (%)", 0.0, 20.0, 0.8)
 N = st.number_input("Nitrogen status (0–1)", 0.0, 1.0, 0.25)
 P = st.number_input("Phosphorus status (0–1)", 0.0, 1.0, 0.30)
 K = st.number_input("Potassium status (0–1)", 0.0, 1.0, 0.55)
@@ -22,11 +23,16 @@ sample = {
     "pH": pH,
     "EC": EC,
     "Organic_Matter": OM,
+    "Carbon": Carbon,
     "N": N,
     "P": P,
     "K": K,
     "Moisture": Moisture
 }
+
+# =========================
+# Diagnose soil
+# =========================
 
 def diagnose_soil(sample):
     problems = []
@@ -41,6 +47,9 @@ def diagnose_soil(sample):
 
     if sample["Organic_Matter"] < 1.5:
         problems.append("Low organic matter")
+
+    if sample["Carbon"] < 1.0:
+        problems.append("Low carbon")
 
     if sample["N"] < 0.4:
         problems.append("Low N")
@@ -60,6 +69,10 @@ def diagnose_soil(sample):
         problems.append("No major limitation")
 
     return problems
+
+# =========================
+# Scoring
+# =========================
 
 def score_bacteria(row, problems, sample):
     score = 0
@@ -97,7 +110,7 @@ def score_bacteria(row, problems, sample):
             score += 1
             reasons.append("supports general plant growth")
 
-    # Optional pH suitability
+    # pH suitability
     if "pH_min" in kb.columns and "pH_max" in kb.columns:
         if pd.notna(row["pH_min"]) and pd.notna(row["pH_max"]):
             if row["pH_min"] <= sample["pH"] <= row["pH_max"]:
@@ -107,12 +120,16 @@ def score_bacteria(row, problems, sample):
                 score -= 1
                 reasons.append("pH may be less suitable")
 
-    # Optional limitation penalty
+    # Limitation penalty
     if "high salinity" in problems_lower and "salinity" in limitation:
         score -= 1
         reasons.append("limitation: salinity may reduce activity")
 
     return score, "; ".join(reasons)
+
+# =========================
+# Run
+# =========================
 
 if st.button("Analyze Sample"):
     detected_problems = diagnose_soil(sample)
@@ -131,6 +148,20 @@ if st.button("Analyze Sample"):
 
     st.subheader("Detected Soil Problems")
     st.write(detected_problems)
+
+    # ✅ توصية دعم (الكاربون)
+    support_actions = []
+
+    if "Low carbon" in detected_problems:
+        support_actions.append("Add organic matter to improve soil carbon content.")
+
+    if "Low organic matter" in detected_problems:
+        support_actions.append("Add compost or organic residues.")
+
+    if support_actions:
+        st.subheader("Recommended Support Actions")
+        for action in support_actions:
+            st.write("- " + action)
 
     st.subheader("Recommended Bacteria Ranking")
     st.dataframe(result_df, use_container_width=True)
