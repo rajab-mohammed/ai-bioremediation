@@ -1,11 +1,21 @@
 import pandas as pd
 import streamlit as st
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
 
-st.set_page_config(page_title="AI Bioremediation System", layout="centered")
+st.set_page_config(
+    page_title="AI Soil Bioremediation System",
+    layout="centered"
+)
 
 st.title("AI-Assisted Soil Bioremediation Recommendation System")
+st.write("Enter soil sample results to get the recommended bacteria.")
 
-kb = pd.read_excel("soil_bacteria_kb_10gen_ai_v1.xlsx", sheet_name="Bacteria_KB")
+# Load knowledge base
+kb = pd.read_excel(
+    "soil_bacteria.xlsx",
+    sheet_name="Bacteria_KB"
+)
 
 st.header("Enter Soil Sample Data")
 
@@ -30,9 +40,6 @@ sample = {
     "Moisture": Moisture
 }
 
-# =========================
-# Diagnose soil
-# =========================
 
 def diagnose_soil(sample):
     problems = []
@@ -70,9 +77,6 @@ def diagnose_soil(sample):
 
     return problems
 
-# =========================
-# Scoring
-# =========================
 
 def score_bacteria(row, problems, sample):
     score = 0
@@ -110,8 +114,7 @@ def score_bacteria(row, problems, sample):
             score += 1
             reasons.append("supports general plant growth")
 
-    # pH suitability
-    if "pH_min" in kb.columns and "pH_max" in kb.columns:
+    if "pH_min" in row and "pH_max" in row:
         if pd.notna(row["pH_min"]) and pd.notna(row["pH_max"]):
             if row["pH_min"] <= sample["pH"] <= row["pH_max"]:
                 score += 2
@@ -120,36 +123,69 @@ def score_bacteria(row, problems, sample):
                 score -= 1
                 reasons.append("pH may be less suitable")
 
-    # Limitation penalty
     if "high salinity" in problems_lower and "salinity" in limitation:
         score -= 1
         reasons.append("limitation: salinity may reduce activity")
 
     return score, "; ".join(reasons)
 
-# =========================
-# Run
-# =========================
+
+def calculate_ai_similarity(kb, detected_problems):
+    problem_text = " ".join(detected_problems)
+
+    if "AI_Profile" not in kb.columns:
+        kb["AI_Profile"] = (
+            kb["Target_Problem"].astype(str) + " " +
+            kb["Main_Function"].astype(str) + " " +
+            kb["AI_Tag"].astype(str) + " " +
+            kb["Limitation"].astype(str)
+        )
+
+    texts = [problem_text] + kb["AI_Profile"].fillna("").astype(str).tolist()
+
+    vectorizer = TfidfVectorizer()
+    tfidf_matrix = vectorizer.fit_transform(texts)
+
+    similarity_scores = cosine_similarity(
+        tfidf_matrix[0:1],
+        tfidf_matrix[1:]
+    ).flatten()
+
+    kb["AI_Similarity"] = similarity_scores
+
+    return kb
+
 
 if st.button("Analyze Sample"):
+
     detected_problems = diagnose_soil(sample)
 
+    kb = calculate_ai_similarity(kb, detected_problems)
+
     results = []
+
     for _, row in kb.iterrows():
-        score, reason = score_bacteria(row, detected_problems, sample)
+        rule_score, reason = score_bacteria(row, detected_problems, sample)
+
+        final_score = rule_score + (row["AI_Similarity"] * 10)
+
         results.append({
             "Bacteria": row["Bacteria"],
-            "Score": score,
+            "Rule_Score": round(rule_score, 2),
+            "AI_Similarity": round(row["AI_Similarity"], 3),
+            "Final_Score": round(final_score, 2),
             "Main_Function": row.get("Main_Function", ""),
             "Reason": reason
         })
 
-    result_df = pd.DataFrame(results).sort_values("Score", ascending=False)
+    result_df = pd.DataFrame(results).sort_values(
+        "Final_Score",
+        ascending=False
+    )
 
     st.subheader("Detected Soil Problems")
     st.write(detected_problems)
 
-    # ✅ توصية دعم (الكاربون)
     support_actions = []
 
     if "Low carbon" in detected_problems:
@@ -157,6 +193,12 @@ if st.button("Analyze Sample"):
 
     if "Low organic matter" in detected_problems:
         support_actions.append("Add compost or organic residues.")
+
+    if "High salinity" in detected_problems:
+        support_actions.append("Improve drainage and use salt-tolerant bacterial strains.")
+
+    if "Low moisture" in detected_problems:
+        support_actions.append("Improve irrigation management before bacterial application.")
 
     if support_actions:
         st.subheader("Recommended Support Actions")
@@ -168,5 +210,6 @@ if st.button("Analyze Sample"):
 
     best = result_df.iloc[0]
 
-    st.success(f"Best bacteria: {best['Bacteria']}")
+    st.success(f"Best recommended bacteria: {best['Bacteria']}")
+    st.write("Final Score:", best["Final_Score"])
     st.write("Reason:", best["Reason"])
