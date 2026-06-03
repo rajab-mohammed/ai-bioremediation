@@ -56,13 +56,6 @@ K = st.number_input(
     value=236.0
 )
 
-Moisture = st.number_input(
-    "Moisture (%)",
-    min_value=0.0,
-    max_value=100.0,
-    value=32.0
-)
-
 sample = {
     "Sample_ID": "S01",
     "pH": pH,
@@ -71,8 +64,7 @@ sample = {
     "Carbon": Carbon,
     "N": N,
     "P": P,
-    "K": K,
-    "Moisture": Moisture
+    "K": K
 }
 
 
@@ -95,7 +87,7 @@ def diagnose_soil(sample):
     if sample["Carbon"] < 1.0:
         problems.append("Low carbon")
 
-    # N, P, K are now mg/kg
+    # N, P, K are mg/kg
     if sample["N"] < 250:
         problems.append("Low N")
 
@@ -104,11 +96,6 @@ def diagnose_soil(sample):
 
     if sample["K"] < 100:
         problems.append("Low K")
-
-    if sample["Moisture"] < 25:
-        problems.append("Low moisture")
-    elif sample["Moisture"] > 70:
-        problems.append("High moisture")
 
     if len(problems) == 0:
         problems.append("No major limitation")
@@ -239,11 +226,6 @@ if st.button("Analyze Sample"):
     if "High salinity" in detected_problems:
         support_actions.append(
             "Improve drainage and use salt-tolerant bacterial strains."
-        )
-
-    if "Low moisture" in detected_problems:
-        support_actions.append(
-            "Improve irrigation management before bacterial application."
         )
 
     if support_actions:
