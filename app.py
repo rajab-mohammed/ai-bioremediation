@@ -19,14 +19,49 @@ kb = pd.read_excel(
 
 st.header("Enter Soil Sample Data")
 
-pH = st.number_input("pH", 0.0, 14.0, 8.2)
-EC = st.number_input("EC / Salinity", 0.0, 20.0, 4.6)
-OM = st.number_input("Organic Matter (%)", 0.0, 20.0, 0.9)
-Carbon = st.number_input("Carbon (%)", 0.0, 20.0, 0.8)
-N = st.number_input("Nitrogen status (0–1)", 0.0, 1.0, 0.25)
-P = st.number_input("Phosphorus status (0–1)", 0.0, 1.0, 0.30)
-K = st.number_input("Potassium status (0–1)", 0.0, 1.0, 0.55)
-Moisture = st.number_input("Moisture (%)", 0.0, 100.0, 32.0)
+pH = st.number_input("pH", min_value=0.0, max_value=14.0, value=8.2)
+
+EC = st.number_input(
+    "EC (µS/cm)",
+    min_value=0.0,
+    value=20300.0
+)
+
+OM = st.number_input(
+    "Organic Matter (%)",
+    min_value=0.0,
+    value=0.9
+)
+
+# Carbon is calculated automatically from organic matter
+Carbon = OM / 1.724
+
+st.write(f"Estimated Organic Carbon (%): {Carbon:.2f}")
+
+N = st.number_input(
+    "Total Nitrogen (mg/kg)",
+    min_value=0.0,
+    value=387.0
+)
+
+P = st.number_input(
+    "Available Phosphorus (mg/kg)",
+    min_value=0.0,
+    value=4.0
+)
+
+K = st.number_input(
+    "Available Potassium (mg/kg)",
+    min_value=0.0,
+    value=236.0
+)
+
+Moisture = st.number_input(
+    "Moisture (%)",
+    min_value=0.0,
+    max_value=100.0,
+    value=32.0
+)
 
 sample = {
     "Sample_ID": "S01",
@@ -49,22 +84,25 @@ def diagnose_soil(sample):
     elif sample["pH"] > 7.8:
         problems.append("Alkaline pH")
 
-    if sample["EC"] > 4.0:
+    # EC is entered as µS/cm
+    if sample["EC"] > 4000:
         problems.append("High salinity")
 
     if sample["Organic_Matter"] < 1.5:
         problems.append("Low organic matter")
 
+    # Carbon is calculated, not entered manually
     if sample["Carbon"] < 1.0:
         problems.append("Low carbon")
 
-    if sample["N"] < 0.4:
+    # N, P, K are now mg/kg
+    if sample["N"] < 250:
         problems.append("Low N")
 
-    if sample["P"] < 0.4:
+    if sample["P"] < 10:
         problems.append("Low P")
 
-    if sample["K"] < 0.4:
+    if sample["K"] < 100:
         problems.append("Low K")
 
     if sample["Moisture"] < 25:
@@ -189,16 +227,24 @@ if st.button("Analyze Sample"):
     support_actions = []
 
     if "Low carbon" in detected_problems:
-        support_actions.append("Add organic matter to improve soil carbon content.")
+        support_actions.append(
+            "Add organic matter to improve soil carbon content."
+        )
 
     if "Low organic matter" in detected_problems:
-        support_actions.append("Add compost or organic residues.")
+        support_actions.append(
+            "Add compost or organic residues."
+        )
 
     if "High salinity" in detected_problems:
-        support_actions.append("Improve drainage and use salt-tolerant bacterial strains.")
+        support_actions.append(
+            "Improve drainage and use salt-tolerant bacterial strains."
+        )
 
     if "Low moisture" in detected_problems:
-        support_actions.append("Improve irrigation management before bacterial application.")
+        support_actions.append(
+            "Improve irrigation management before bacterial application."
+        )
 
     if support_actions:
         st.subheader("Recommended Support Actions")
