@@ -22,9 +22,9 @@ st.header("Enter Soil Sample Data")
 pH = st.number_input("pH", min_value=0.0, max_value=14.0, value=8.2)
 
 EC = st.number_input(
-    "EC (µS/cm)",
+    "EC (dS/m)",
     min_value=0.0,
-    value=20300.0
+    value=20.3
 )
 
 OM = st.number_input(
@@ -77,7 +77,7 @@ def diagnose_soil(sample):
         problems.append("Alkaline pH")
 
     # EC is entered as µS/cm
-    if sample["EC"] > 4000:
+    if sample["EC"] > 4.0:
         problems.append("High salinity")
 
     if sample["Organic_Matter"] < 1.5:
